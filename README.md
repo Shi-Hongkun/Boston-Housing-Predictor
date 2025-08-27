@@ -1,82 +1,43 @@
 # Boston Housing Predictor
 
-A project that analyzes temporal drift effects in housing price prediction by comparing chronological splits (first 70% older houses vs last 30% newer houses) with random split baselines.
+A solution on handling temporal drift under a strict chronological split.
 
-## Project Overview
+## Executive Summary
+- Outcome: Positive generalization under the mandatory split; best test RMSE 3.75, R² 0.522 (SVR with train-only calibration).
+- Approach: Stability-first features, train-quantile winsorization, monotonic transforms, ratio/difference features, train-only scaling, time-aware CV tuning, simple linear calibration.
+- Alignment: Strictly train on the first 70% and test on the last 30%; compare against baselines; analyze split performance differences; propose and implement regression-only robustness strategies.
 
-This project addresses the challenge of model performance degradation when training on historical data and testing on newer data. It implements:
+## Overview
+- Constraint: Train on first 70% (older houses), test on last 30% (newer houses) — non‑negotiable.
+- Goal: Achieve positive R² on the constrained test split.
 
-- **Chronological Split**: Train on first 70% of data (older houses), test on last 30% (newer houses)
-- **Random Split Baseline**: Standard 70/30 random split for comparison
-- **AGE-based Split**: Alternative temporal split based on house age
-- **Multiple Models**: Ridge regression and Gradient Boosting with comprehensive evaluation
-- **Drift Analysis**: Statistical analysis of feature distribution shifts between train/test sets
-
-## Dataset
-
-The dataset (`data/housing.csv`) contains 506 samples with 13 features:
-- **Features**: CRIM, ZN, INDUS, CHAS, NOX, RM, AGE, DIS, RAD, TAX, PTRATIO, B, LSTAT
-- **Target**: MEDV (median house value in $1000s)
+## Current Best Results (Phase 2)
+- Model: SVR (with Phase 2 features + train‑only calibration)
+- Test metrics: RMSE 3.75, R² 0.522
+- Baselines for reference:
+  - Prior best (pre‑Phase 2): GB RMSE 6.27, R² -0.332
+  - Original (all features, standard): RMSE 12.52, R² -4.311
 
 ## Quick Start
-
-### 1. Install uv
-
-### 2. Setup Project
+- Prerequisites: Python 3.8+, `uv`
 ```bash
 uv sync
+uv shell
+python create_production_notebook.py
+jupyter notebook boston-housing-predictor.ipynb
 ```
 
-### 3. Start Analysis
-run in your IDE, or
+## What the Notebook Does
+- Stability analysis → select 8 stable features
+- Phase 2 features: train‑quantile winsorization, monotonic transforms (log1p), ratio/difference features
+- Train‑only scaling and target calibration
+- Time‑aware CV tuning for SVR/GB on the train segment
+- Strict 70/30 evaluation on the test segment
 
-```bash
-uv run jupyter lab
-```
-Open `ref/the-boston-housing-dataset.ipynb` in your browser.
+## Lessons Learned
+- Feature explosion (13→43) worsened drift sensitivity — dropped.
+- Domain adaptation (e.g., CORAL, quantile/z‑score matching) reduced MMD but harmed prediction — kept only as diagnostics, not used in prediction.
+- Stability‑first features + robust transforms + simple calibration can flip R² positive under the strict split.
 
-## Project Structure
-
-```
-Boston-Housing-Predictor/
-├── data/
-│   └── housing.csv          # Boston Housing dataset
-├── ref/
-│   └── the-boston-housing-dataset.ipynb  # A copy of the Kaggle's script, for ref only
-├── boston-housing-predictor.ipynb # Complete analysis notebook
-├── pyproject.toml           # Project configuration and dependencies
-├── uv.lock                  # Locked dependency versions
-└── README.md               # This file
-```
-
-## Analysis Notebook
-
-The notebook `boston-housing-predictor.ipynb` contains a complete implementation:
-
-- **7 main sections** covering the complete analysis workflow
-- **Three split strategies**: chronological, AGE-based, and random baseline
-- **Two dataset versions**: keep-all vs remove-censored data
-- **Two models**: Ridge regression and GradientBoosting
-- **Comprehensive evaluation**: RMSE, MAE, R² across all combinations
-- **Drift analysis**: Feature distribution shifts and statistical significance
-- **Model explainability**: Coefficients and feature importance analysis
-
-## Key Features
-
-- **Reproducible Environment**: Locked dependencies with uv.lock
-- **Temporal Drift Analysis**: Compare chronological vs random splits
-- **Multiple Model Evaluation**: Ridge regression and Gradient Boosting
-- **Statistical Analysis**: Feature distribution shifts and model explainability
-- **Robustness Recommendations**: Strategies for handling temporal changes
-
-## Dependencies
-
-Core packages:
-- `numpy`, `pandas`, `scikit-learn` - Data processing and ML
-- `seaborn`, `matplotlib` - Visualization
-- `scipy` - Statistical analysis
-- `jupyter`, `ipykernel` - Notebook environment
-
-## License
-
-This project is for educational and case study purposes.
+## Dataset
+- Boston Housing (local copy at `data/housing.csv`), 490 samples after removing censored targets (MEDV ≥ 50.0).
